@@ -136,9 +136,6 @@ os.makedirs(model_dir, exist_ok=True)
 # tensorflow device handling
 device, nb_devices = vxm.tf.utils.setup_device(args.gpu)
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(gpus[0], True)
-
 # device = '/cpu:0'
 print("Harsha, device is %s\n", device)
 
