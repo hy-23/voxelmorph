@@ -319,6 +319,13 @@ tend = tf.timestamp()
 tspent = tend - tstart
 print("Harsha, the training time is {}", tspent)
 
+# log end time
+tend = tf.timestamp()
+
+# time spent in training
+tspent = tend - tstart
+print("Harsha, the training time is {}", tspent)
+
 # convert the history.history dict to a pandas DataFrame:
 # https://stackoverflow.com/a/55901240
 hist_df = pd.DataFrame(history.history)
