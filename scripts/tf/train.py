@@ -294,6 +294,7 @@ tstart = tf.timestamp()
 
 print("Harsha, the float precision is {}".format(tf.keras.backend.floatx()))
 
+
 if (args.use_steps_per_epoch):
     history = model.fit(generator,
                     initial_epoch=args.initial_epoch,
@@ -311,6 +312,13 @@ else:
                     validation_split=0.85, # m=660, m_train=561, m_val=99.
                     verbose=1
                     )
+
+# log end time
+tend = tf.timestamp()
+
+# time spent in training
+tspent = tend - tstart
+print("Harsha, the training time is {}", tspent)
 
 # log end time
 tend = tf.timestamp()
