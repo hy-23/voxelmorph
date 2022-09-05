@@ -91,7 +91,6 @@ def load_volfile(
     if isinstance(filename, str) and not os.path.isfile(filename):
         raise ValueError("'%s' is not a file." % filename)
 
-    print("filename: {}\n".format(filename))
     if not os.path.isfile(filename):
         if ret_affine:
             (vol, affine) = filename

@@ -52,7 +52,6 @@ def volgen(
 
     while True:
         if(b_new_epoch):
-            print("generating new random choice")
             train_indices = np.random.choice(train_size, size=train_size, replace=False)
             b_new_epoch = False
 
@@ -64,16 +63,11 @@ def volgen(
         indices = []
         for j in range(batch_size):
             indices.append(train_indices[i+j])
-
-        print("\nstep_num : {}".format(step_num))
-        print("i        : {}".format(i))
-        print("indices  : {}".format(indices))
         
         step_num += 1
         if(step_num == steps_per_epoch):
             b_new_epoch = True
             step_num = 0
-            print("b_new_epoch = True")
 
         ## generate [batchsize] random image indices
         #indices = np.random.randint(len(vol_names), size=batch_size)
