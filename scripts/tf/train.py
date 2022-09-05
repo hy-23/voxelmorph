@@ -364,6 +364,7 @@ tstart = tf.timestamp()
 #print("Harsha, the float precision is {}".format(tf.keras.backend.floatx()))
 
 if(args.use_validation == False):
+    print("Harsha, running without validation data.")
     early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=3, verbose=1)
     history = model.fit(generator,
                         initial_epoch=args.initial_epoch,
@@ -403,7 +404,7 @@ print("Harsha, the training time is {}", tspent)
 # https://stackoverflow.com/a/55901240
 hist_df = pd.DataFrame(history.history)
 if os.name == 'nt':
-    hist_csv_file = 'I:\cluster_logs\history_vscode.csv'
+    hist_csv_file = 'I:\cluster_logs\history_bg_vscode.csv'
 elif os.name == 'posix':
     hist_csv_file = '/work/scratch/yogeshappa/cluster_logs/history.csv'
 with open(hist_csv_file, mode='w') as f:
