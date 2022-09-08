@@ -79,14 +79,14 @@ def volgen(
         vols = [np.concatenate(imgs, axis=0)]
 
         # optionally load segmentations and concatenate
-        if segs is True:
+        if isinstance(segs, list):
             # assume inputs are npz files with 'seg' key
             load_params['np_var'] = 'seg'  # be sure to load seg
-            s = [py.utils.load_volfile(vol_names[i], **load_params) for i in indices]
-            vols.append(np.concatenate(s, axis=0))
-        elif isinstance(segs, list):
-            # assume segs is a corresponding list of files or preloaded volumes
             s = [py.utils.load_volfile(segs[i], **load_params) for i in indices]
+            vols.append(np.concatenate(s, axis=0))
+        elif segs is True:
+            # assume segs is a corresponding list of files or preloaded volumes
+            s = [py.utils.load_volfile(vol_names[i], **load_params) for i in indices]
             vols.append(np.concatenate(s, axis=0))
 
         yield tuple(vols)
@@ -167,7 +167,7 @@ def scan_to_atlas(vol_names, atlas, bidir=False, batch_size=1, no_warp=False, se
         yield (invols, outvols)
 
 
-def semisupervised(vol_names, seg_names, labels, atlas_file=None, downsize=2):
+def semisupervised(vol_names, seg_names, labels, steps_per_epoch, atlas_file=None, atlas_file_seg=None, downsize=2):
     """
     Generator for semi-supervised registration training using ground truth segmentations.
     Scan-to-atlas training can be enabled by providing the atlas_file argument. 
@@ -181,7 +181,7 @@ def semisupervised(vol_names, seg_names, labels, atlas_file=None, downsize=2):
     """
     # configure base generator
 
-    gen = volgen(vol_names, segs=seg_names, np_var='vol')
+    gen = volgen(vol_names, segs=seg_names, np_var='vol', steps_per_epoch=steps_per_epoch)
     # gen is a tuple;
     # len(gen) = 2;
     # gen[0] := scan;
@@ -192,18 +192,17 @@ def semisupervised(vol_names, seg_names, labels, atlas_file=None, downsize=2):
 
     # i.e., each label is split into its own feature layer.
     def split_seg(seg):
-        prob_seg = np.zeros((*seg.shape[:4], len(labels)))
+        prob_seg = np.zeros((*seg.shape[:4], 1))
 
         # for each label, create a feature layer in prob_seg.
-        for i, label in enumerate(labels):
-            prob_seg[0, ..., i] = seg[0, ..., 0] == label # seg[0, ..., 0] because batch size is 1 and feature size is also 1.
+        prob_seg[0, ..., 0] = seg[0, ..., 0] == labels # seg[0, ..., 0] because batch size is 1 and feature size is also 1.
         return prob_seg[:, ::downsize, ::downsize, ::downsize, :] # take every second element.
 
     # cache target vols and segs if atlas is supplied
     if atlas_file:
         trg_vol = py.utils.load_volfile(atlas_file, np_var='vol',
                                         add_batch_axis=True, add_feat_axis=True)
-        trg_seg = py.utils.load_volfile(atlas_file, np_var='seg',
+        trg_seg = py.utils.load_volfile(atlas_file_seg, np_var='seg',
                                         add_batch_axis=True, add_feat_axis=True)
         trg_seg = split_seg(trg_seg)
 
