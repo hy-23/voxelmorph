@@ -99,6 +99,7 @@ class VxmDense(ne.modelio.LoadableModel):
             name: Model name - also used as layer name prefix. Default is 'vxm_dense'.
         """
 
+        tf.print("Here, I am.")
         # ensure correct dimensionality
         ndims = len(inshape)
         assert ndims in [1, 2, 3], 'ndims should be one of 1, 2, or 3. found: %d' % ndims
@@ -1102,15 +1103,19 @@ class Unet(tf.keras.Model):
         if isinstance(max_pool, int):
             max_pool = [max_pool] * nb_levels
 
+
+        enc_strides = [[4,4,1], [1,1,1], [1,1,1], [1,1,1]]
         # configure encoder (down-sampling path)
         enc_layers = []
         last = unet_input
         for level in range(nb_levels - 1):
             for conv in range(nb_conv_per_level):
                 nf = enc_nf[level * nb_conv_per_level + conv]
+                stride = enc_strides[level * nb_conv_per_level + conv]
+                print("enc_stride: {}".format(stride))
                 layer_name = '%s_enc_conv_%d_%d' % (name, level, conv)
                 last = _conv_block(last, nf, name=layer_name, do_res=do_res, hyp_tensor=hyp_tensor,
-                                   kernel_initializer=kernel_initializer)
+                                   kernel_initializer=kernel_initializer, strides=stride)
             enc_layers.append(last)
 
             # temporarily use maxpool since downsampling doesn't exist in keras
@@ -1123,11 +1128,15 @@ class Unet(tf.keras.Model):
         else:
             activate = lambda lvl, c: True
 
+
+        dec_strides = [[1,1,1], [1,1,1], [1,1,1], [1,1,1]]
         # configure decoder (up-sampling path)
         for level in range(nb_levels - 1):
             real_level = nb_levels - level - 2
             for conv in range(nb_conv_per_level):
                 nf = dec_nf[level * nb_conv_per_level + conv]
+                stride = dec_strides[level * nb_conv_per_level + conv]
+                print("dec_stride: {}".format(stride))
                 layer_name = '%s_dec_conv_%d_%d' % (name, real_level, conv)
                 last = _conv_block(last, nf, name=layer_name, do_res=do_res, hyp_tensor=hyp_tensor,
                                    include_activation=activate(level, conv),
@@ -1145,12 +1154,21 @@ class Unet(tf.keras.Model):
         else:
             activate = lambda n: True
 
+
+        final_stride = [[4,4,1], [1,1,1], [1,1,1]]
+        trans_conv = [True, False, False]
         # now we take care of any remaining convolutions
         for num, nf in enumerate(final_convs):
             layer_name = '%s_dec_final_conv_%d' % (name, num)
-            last = _conv_block(last, nf, name=layer_name, hyp_tensor=hyp_tensor,
-                               include_activation=activate(num),
-                               kernel_initializer=kernel_initializer)
+            bTranspose = trans_conv[num]
+            stride = final_stride[num]
+            print("final_stride: {}".format(stride))
+            print("bTranspose: {}".format(bTranspose))
+            last = _trans_or_conv_block(last, nf, name=layer_name, hyp_tensor=hyp_tensor,
+                                        include_activation=activate(num),
+                                        kernel_initializer=kernel_initializer,
+                                        transposedConv=bTranspose,
+                                        strides=stride)
 
         # add the final activation function is set
         if final_activation_function is not None:
@@ -1263,3 +1281,42 @@ def _upsample_block(x, connection, factor=2, name=None):
     upsampled = UpSampling(size=size, name=name)(x)
     name = name + '_concat' if name else None
     return KL.concatenate([upsampled, connection], name=name)
+
+# function block to perform convolution or transposed convolution.
+def _trans_or_conv_block(x, nfeat, strides=1, name=None, do_res=False, hyp_tensor=None,
+                         include_activation=True, kernel_initializer='he_normal', transposedConv=False):
+    """
+    Specific convolutional block followed by leakyrelu for unet.
+    """
+    ndims = len(x.get_shape()) - 2
+    assert ndims in (1, 2, 3), 'ndims should be one of 1, 2, or 3. found: %d' % ndims
+
+    extra_conv_params = {}
+    if hyp_tensor is not None:
+        Conv = getattr(ne.layers, 'HyperConv%dDFromDense' % ndims)
+        conv_inputs = [x, hyp_tensor]
+    else:
+        if(transposedConv):
+            Conv = getattr(KL, 'Conv%dDTranspose' % ndims)
+        else:
+            Conv = getattr(KL, 'Conv%dD' % ndims)
+        extra_conv_params['kernel_initializer'] = kernel_initializer
+        conv_inputs = x
+    
+    convolved = Conv(nfeat, kernel_size=3, padding='same',
+                     strides=strides, name=name, **extra_conv_params)(conv_inputs)
+
+    if do_res:
+        # assert nfeat == x.get_shape()[-1], 'for residual number of features should be constant'
+        add_layer = x
+        print('note: this is a weird thing to do, since its not really residual training anymore')
+        if nfeat != x.get_shape().as_list()[-1]:
+            add_layer = Conv(nfeat, kernel_size=3, padding='same',
+                             name='resfix_' + name, **extra_conv_params)(conv_inputs)
+        convolved = KL.Lambda(lambda x: x[0] + x[1])([add_layer, convolved])
+
+    if include_activation:
+        name = name + '_activation' if name else None
+        convolved = KL.LeakyReLU(0.2, name=name)(convolved)
+
+    return convolved

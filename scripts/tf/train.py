@@ -38,9 +38,9 @@ import os
 import sys
 
 if os.name == 'nt': # windows system
-    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+    sys.path.append('Y:\\repo_condor\Masterarbeit\\voxelmorph')
 elif os.name == 'posix': # nic system
-    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+    sys.path.append('/home/students/yogeshappa/repo_condor/Masterarbeit/voxelmorph')
 
 import random
 import argparse
@@ -229,10 +229,11 @@ train_files = vxm.py.utils.read_file_list(args.img_list, prefix=args.img_prefix,
                                           suffix=args.img_suffix)
 assert len(train_files) > 0, 'Could not find any training data.'
 
-# load and prepare validation data
-val_files = vxm.py.utils.read_file_list(args.val_list, prefix=args.img_prefix,
-                                          suffix=args.img_suffix)
-assert len(val_files) > 0, 'Could not find any validation data.'
+if(args.use_validation == True):
+    # load and prepare validation data
+    val_files = vxm.py.utils.read_file_list(args.val_list, prefix=args.img_prefix,
+                                            suffix=args.img_suffix)
+    assert len(val_files) > 0, 'Could not find any validation data.'
 
 # no need to append an extra feature axis if data is multichannel
 add_feat_axis = not args.multichannel # [hy23] because ours is grayscale, add_feat_axis := true.
@@ -245,10 +246,11 @@ if args.atlas:
                                              batch_size=args.batch_size,
                                              bidir=args.bidir,
                                              add_feat_axis=add_feat_axis)
-    val_generator = vxm.generators.scan_to_atlas(val_files, atlas,
-                                                 batch_size=args.batch_size,
-                                                 bidir=args.bidir,
-                                                 add_feat_axis=add_feat_axis)
+    if(args.use_validation == True):
+        val_generator = vxm.generators.scan_to_atlas(val_files, atlas,
+                                                     batch_size=args.batch_size,
+                                                     bidir=args.bidir,
+                                                     add_feat_axis=add_feat_axis)
 else:
     # scan-to-scan generator
     generator = vxm.generators.scan_to_scan(
@@ -394,8 +396,8 @@ print("Harsha, the training time is {}", tspent)
 # https://stackoverflow.com/a/55901240
 hist_df = pd.DataFrame(history.history)
 if os.name == 'nt':
-    hist_csv_file = 'I:\cluster_logs\history_vscode.csv'
+    hist_csv_file = 'I:\cluster_logs\history_vscode_strinding.csv'
 elif os.name == 'posix':
-    hist_csv_file = '/work/scratch/yogeshappa/cluster_logs/history.csv'
+    hist_csv_file = '/work/scratch/yogeshappa/cluster_logs/history_vscode_strinding.csv'
 with open(hist_csv_file, mode='w') as f:
     hist_df.to_csv(f)
