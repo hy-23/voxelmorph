@@ -107,6 +107,49 @@ class NCC:
         # loss
         return -cc
 
+class Weighted_MSE:
+    """
+    Sigma-weighted mean squared error for image reconstruction.
+    """
+
+    def __init__(self, batch, rows, columns, slices, feat, image_sigma=1.0):
+        self.image_sigma = image_sigma
+        self.weight = K.ones((batch, rows, columns, slices, feat))
+        
+        upper_half = rows >> 1
+        lower_half = rows - upper_half
+
+        max_value = 0.2
+        steps     = max_value / lower_half
+        curr_step = 0
+        line0     = np.ones((batch, columns, slices, feat))
+
+        print("upper_half {}".format(upper_half))
+        print("lower_half {}".format(lower_half))
+
+        for lines in range(lower_half+1):
+          curr_step                              = lines * steps
+          self.weight[:, upper_half+lines-1, :, :, :].assign(curr_step + line0)
+
+
+    def mse(self, y_true, y_pred):
+        print("type of y_pred {}".format(type(y_pred)))
+        print("type of self.weight {}".format(type(self.weight)))
+        mse = K.square((y_true - y_pred)*self.weight)
+        return mse
+
+    def loss(self, y_true, y_pred, reduce='mean'):
+        # compute mse
+        mse = self.mse(y_true, y_pred)
+        # reduce
+        if reduce == 'mean':
+            mse = K.mean(mse)
+        elif reduce == 'max':
+            mse = K.max(mse)
+        elif reduce is not None:
+            raise ValueError(f'Unknown MSE reduction type: {reduce}')
+        # loss
+        return 1.0 / (self.image_sigma ** 2) * mse
 
 class MSE:
     """

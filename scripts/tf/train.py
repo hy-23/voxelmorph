@@ -318,7 +318,7 @@ if args.load_weights:
 if args.image_loss == 'ncc':
     image_loss_func = vxm.losses.NCC().loss
 elif args.image_loss == 'mse':
-    image_loss_func = vxm.losses.MSE(args.image_sigma).loss
+    image_loss_func = vxm.losses.Weighted_MSE(*sample_shape, args.image_sigma).loss
 else:
     raise ValueError('Image loss should be "mse" or "ncc", but found "%s"' % args.image_loss)
 
@@ -349,8 +349,7 @@ else:
 
 model.compile(optimizer=tf.keras.optimizers.Adam(lr=args.lr), loss=losses, loss_weights=weights)
 
-model.summary(line_length = 175)
-
+# model.summary(line_length = 175)
 # plot graph
 from tensorflow.keras.utils import plot_model
 plot_model(model, to_file='multiple_outputs.png', show_shapes=True)
