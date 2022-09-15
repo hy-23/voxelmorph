@@ -30,6 +30,29 @@ from tensorflow.keras.layers import Layer
 # local utils
 from . import utils
 
+class DistanceComputer(Layer):
+  def __init__(self, *args, **kwargs):
+    super(DistanceComputer, self).__init__(*args, **kwargs)
+
+  def call(self, flow_field, ldm_moving, ldm_fixed):
+     ldm_moved = ldm_moving - flow_field
+     mask = tf.cast(tf.math.logical_not((ldm_moving == 0)), tf.float32)
+     ldm_moved = ldm_moved * mask
+
+     if 0:
+        print("shape of flow_field:  {}".format(flow_field.shape))
+        print("shape of ldm_moving:  {}".format(ldm_moving.shape))
+        print("max of ldm_moving:  {}".format(tf.math.reduce_max(ldm_moving)))
+        print("max of ldm_fixed:  {}".format(tf.math.reduce_max(ldm_fixed)))
+        # Sanity check
+        summe = tf.math.reduce_sum(mask)
+        print("Summe : {} (Must be equal to number of landmarks x 3)".format(summe))
+
+     mse = K.square(ldm_moved - ldm_fixed)
+     mse = K.mean(mse)
+     err = 1.0 / (2) * mse
+     self.add_loss(err)
+     return err
 
 class SpatialTransformer(Layer):
     """

@@ -43,7 +43,7 @@ def read_file_list(filename, prefix=None, suffix=None):
     if prefix is not None:
         filelist = [prefix + f for f in filelist]
     if suffix is not None:
-        filelist = [f + suffix for f in filelist]
+        filelist = [f[:-4] + suffix for f in filelist]
     return filelist
 
 
