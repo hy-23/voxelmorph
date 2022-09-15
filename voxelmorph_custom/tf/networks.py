@@ -294,6 +294,100 @@ class VxmDense(ne.modelio.LoadableModel):
         y_img = layers.SpatialTransformer(interp_method=interp_method)(st_input)
         return tf.keras.Model(warp_model.inputs + [img_input], y_img).predict([src, trg, img])
 
+class VxmDenseSemiSupervisedLandmarks(ne.modelio.LoadableModel):
+    """
+    VoxelMorph network for (semi-supervised) nonlinear registration between two images using Landmarks.
+    """
+    @ne.modelio.store_config_args
+    def __init__(self,
+                 inshape,
+                 feat=3,
+                 nb_unet_features=None,
+                 bidir=False,
+                 name='vxm_dense',
+                 **kwargs):
+        """
+        Parameters:
+            inshape: Input shape. e.g. (192, 192, 192)
+            nb_unet_features: Unet convolutional features.
+                See VxmDense documentation for more information.
+            bidir: Enable bidirectional cost function on images. Default is False.
+            kwargs: Forwarded to the internal VxmDense model.
+        """
+
+        # configure base voxelmorph network
+        vxm_model = VxmDense(inshape,
+                             nb_unet_features=nb_unet_features,
+                             bidir=bidir,
+                             **kwargs)
+
+        # configure ldm input layer
+        ldm_src = tf.keras.Input(shape=(*inshape, feat), name=f'{name}_source_ldm')
+        ldm_fxd = tf.keras.Input(shape=(*inshape, feat), name=f'{name}_atlas_ldm')
+
+        """
+        Start: Core logic for computing distance error between landmarks.
+        """
+        distance = layers.DistanceComputer()
+        err_value = distance(vxm_model.references.pos_flow, ldm_src, ldm_fxd)
+        """
+        End: Core logic for computing distance error between landmarks.
+        """
+
+        inputs = vxm_model.inputs + [ldm_src] + [ldm_fxd]
+        outputs = vxm_model.outputs + [err_value]
+
+        # initialize the keras model
+        super().__init__(inputs=inputs, outputs=outputs)
+
+        # cache pointers to important layers and tensors for future reference
+        self.references = ne.modelio.LoadableModel.ReferenceContainer()
+        self.references.vxm_model = vxm_model
+        self.references.pos_flow = vxm_model.references.pos_flow
+        self.references.neg_flow = vxm_model.references.neg_flow
+
+    def get_registration_model(self):
+        """
+        Returns a reconfigured model to predict only the final transform.
+        """
+        return tf.keras.Model(self.inputs[:2], self.references.pos_flow)
+
+    def register(self, src, trg):
+        """
+        Predicts the transform from src to trg tensors.
+        """
+        return self.get_registration_model().predict([src, trg])
+
+    def apply_transform(self, src, trg, img, interp_method='linear'):
+        """
+        Predicts the transform from src to trg and applies it to the img tensor.
+        """
+        warp_model = self.get_registration_model()
+        img_input = tf.keras.Input(shape=img.shape[1:])
+        st_input = [img_input, warp_model.output]
+        y_img = layers.SpatialTransformer(interp_method=interp_method)(st_input)
+        return tf.keras.Model(warp_model.inputs + [img_input], y_img).predict([src, trg, img])
+
+class VxmDenseLandmarksAuxiliaryLoss(VxmDenseSemiSupervisedLandmarks):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def train_step(self, data):
+        x, y = data
+
+        # Gradient Tape
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+            loss += sum(self.losses)
+
+        # Calculate batch gradients
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+
+        # update metrics
+        self.compiled_metrics.update_state(y, y_pred)
+        return {m.name: m.result() for m in self.metrics}
 
 class VxmDenseSemiSupervisedSeg(ne.modelio.LoadableModel):
     """
@@ -407,7 +501,6 @@ class VxmDenseSemiSupervisedSeg(ne.modelio.LoadableModel):
         st_input = [img_input, warp_model.output]
         y_img = layers.SpatialTransformer(interp_method=interp_method)(st_input)
         return tf.keras.Model(warp_model.inputs + [img_input], y_img).predict([src, trg, img])
-
 
 class VxmDenseSemiSupervisedPointCloud(ne.modelio.LoadableModel):
     """
