@@ -51,6 +51,8 @@ class DistanceComputer(Layer):
      mse = K.square(ldm_moved - ldm_fixed)
      mse = K.mean(mse)
      err = 1.0 / (2) * mse
+     # sanity check
+     # err = 100
      self.add_loss(err)
      return err
 

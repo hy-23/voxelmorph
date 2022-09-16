@@ -105,7 +105,7 @@ else:
             self.image_loss			= data['image_loss']
             self.grad_loss_weight	= data['grad_loss_weight']
             self.n_gradients        = data['n_gradients']
-            self.max_pool            = data['max_pool']
+            self.max_pool           = data['max_pool']
     
     # Opening JSON file
     f = open(spec.config_file)
@@ -115,26 +115,26 @@ else:
 
 print()
 print("##############################################################")
-print("img_list			type: {} and value: {}".format(type(args.img_list), args.img_list))
-print("seg_suffix		type: {} and value: {}".format(type(args.seg_suffix), args.seg_suffix))
-print("seg_prefix		type: {} and value: {}".format(type(args.seg_prefix), args.seg_prefix))
-print("model_dir		type: {} and value: {}".format(type(args.model_dir), args.model_dir))
-print("atlas_file		type: {} and value: {}".format(type(args.atlas_file), args.atlas_file))
-print("atlas_landmarks	type: {} and value: {}".format(type(args.atlas_landmarks), args.atlas_landmarks))
-print("gpu				type: {} and value: {}".format(type(args.gpu), args.gpu))
-print("epochs			type: {} and value: {}".format(type(args.epochs), args.epochs))
-print("steps_per_epoch	type: {} and value: {}".format(type(args.steps_per_epoch), args.steps_per_epoch))
-print("load_weights		type: {} and value: {}".format(type(args.load_weights), args.load_weights))
-print("initial_epoch	type: {} and value: {}".format(type(args.initial_epoch), args.initial_epoch))
-print("lr				type: {} and value: {}".format(type(args.lr), args.lr))
-print("enc				type: {} and value: {}".format(type(args.enc), args.enc))
-print("dec				type: {} and value: {}".format(type(args.dec), args.dec))
-print("int_steps		type: {} and value: {}".format(type(args.int_steps), args.int_steps))
-print("int_downsize		type: {} and value: {}".format(type(args.int_downsize), args.int_downsize))
-print("image_loss		type: {} and value: {}".format(type(args.image_loss), args.image_loss))
-print("grad_loss_weight	type: {} and value: {}".format(type(args.grad_loss_weight), args.grad_loss_weight))
-print("n_gradients		type: {} and value: {}".format(type(args.n_gradients), args.n_gradients))
-print("max_pool 		type: {} and value: {}".format(type(args.max_pool), args.max_pool))
+print("img_list         type: {} and value: {}".format(type(args.img_list), args.img_list))
+print("seg_suffix       type: {} and value: {}".format(type(args.seg_suffix), args.seg_suffix))
+print("seg_prefix       type: {} and value: {}".format(type(args.seg_prefix), args.seg_prefix))
+print("model_dir        type: {} and value: {}".format(type(args.model_dir), args.model_dir))
+print("atlas_file       type: {} and value: {}".format(type(args.atlas_file), args.atlas_file))
+print("atlas_landmarks  type: {} and value: {}".format(type(args.atlas_landmarks), args.atlas_landmarks))
+print("gpu              type: {} and value: {}".format(type(args.gpu), args.gpu))
+print("epochs           type: {} and value: {}".format(type(args.epochs), args.epochs))
+print("steps_per_epoch  type: {} and value: {}".format(type(args.steps_per_epoch), args.steps_per_epoch))
+print("load_weights     type: {} and value: {}".format(type(args.load_weights), args.load_weights))
+print("initial_epoch    type: {} and value: {}".format(type(args.initial_epoch), args.initial_epoch))
+print("lr               type: {} and value: {}".format(type(args.lr), args.lr))
+print("enc              type: {} and value: {}".format(type(args.enc), args.enc))
+print("dec              type: {} and value: {}".format(type(args.dec), args.dec))
+print("int_steps        type: {} and value: {}".format(type(args.int_steps), args.int_steps))
+print("int_downsize     type: {} and value: {}".format(type(args.int_downsize), args.int_downsize))
+print("image_loss       type: {} and value: {}".format(type(args.image_loss), args.image_loss))
+print("grad_loss_weight type: {} and value: {}".format(type(args.grad_loss_weight), args.grad_loss_weight))
+print("n_gradients      type: {} and value: {}".format(type(args.n_gradients), args.n_gradients))
+print("max_pool         type: {} and value: {}".format(type(args.max_pool), args.max_pool))
 print("##############################################################")
 print()
 
@@ -174,6 +174,8 @@ save_filename = os.path.join(model_dir, '{epoch:04d}.h5')
 
 # build the model
 model = vxm.networks.VxmDenseLandmarksAuxiliaryLoss(
+    n_gradients=args.n_gradients,
+    max_pool=args.max_pool,
     inshape=inshape,
     nb_unet_features=[enc_nf, dec_nf],
     int_steps=args.int_steps,
