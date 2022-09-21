@@ -119,7 +119,7 @@ class Weighted_MSE:
         upper_half = rows >> 1
         lower_half = rows - upper_half
 
-        max_value = 0.2
+        max_value = 0.4
         steps     = max_value / lower_half
         curr_step = 0
         line0     = np.ones((batch, columns, slices, feat))
