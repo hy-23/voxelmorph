@@ -34,27 +34,43 @@ class DistanceComputer(Layer):
   def __init__(self, *args, **kwargs):
     super(DistanceComputer, self).__init__(*args, **kwargs)
 
-  def call(self, flow_field, ldm_moving, ldm_fixed):
-     ldm_moved = ldm_moving - flow_field
-     mask = tf.cast(tf.math.logical_not((ldm_moving == 0)), tf.float32)
-     ldm_moved = ldm_moved * mask
+  def call(self, a_tensor, b_tensor, d_tensor, s_tensor):
+    
+    # works only for batch size of 1
+    bmin = tf.gather(b_tensor[0], indices=[0])
+    bmax = tf.gather(b_tensor[0], indices=[1])
 
-     if 0:
-        print("shape of flow_field:  {}".format(flow_field.shape))
-        print("shape of ldm_moving:  {}".format(ldm_moving.shape))
-        print("max of ldm_moving:  {}".format(tf.math.reduce_max(ldm_moving)))
-        print("max of ldm_fixed:  {}".format(tf.math.reduce_max(ldm_fixed)))
-        # Sanity check
-        summe = tf.math.reduce_sum(mask)
-        print("Summe : {} (Must be equal to number of landmarks x 3)".format(summe))
+    bmin = tf.reshape(bmin, [5])
+    bmax = tf.reshape(bmax, [5])
 
-     mse = K.square(ldm_moved - ldm_fixed)
-     mse = K.mean(mse)
-     err = 1.0 / (2) * mse
-     # sanity check
-     # err = 100
-     self.add_loss(err)
-     return err
+    bmin = tf.cast(bmin, tf.int32)
+    bmax = tf.cast(bmax, tf.int32)
+
+    size = tf.add(tf.subtract(bmax, bmin), 1)
+
+    df_tensor   = tf.slice(d_tensor, begin=bmin, size=size)
+    mask_tensor = tf.cast(tf.math.logical_not((s_tensor == 0)), tf.float32)
+    res_tensor  = tf.multiply(tf.subtract(s_tensor, df_tensor), mask_tensor)
+
+    if 0:
+        print("size: {}".format(size.shape))
+        print("size: {}".format(size))
+        print("d_tensor: {}".format(d_tensor.shape))
+        print("d_tensor: {}".format(d_tensor))
+        print("begin: {}".format(bmin.shape))
+        print("begin: {}".format(bmin))
+        summe = tf.math.reduce_sum(mask_tensor)
+        print("summe : {}".format(summe))
+
+    mse = K.square(res_tensor - a_tensor)
+    mse = K.mean(mse)
+    err = 1.0 / (2) * mse
+    regularizer = 0.1
+    err = regularizer * err
+    #err = err + 100
+    #print("Error: {}".format(err))
+    self.add_loss(err)
+    return err
 
 class SpatialTransformer(Layer):
     """
