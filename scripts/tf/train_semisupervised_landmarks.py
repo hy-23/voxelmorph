@@ -91,7 +91,6 @@ else:
             self.seg_prefix         = data['seg_prefix']
             self.model_dir          = data['model_dir']
             self.atlas_file         = data['atlas_file']
-            self.atlas_landmarks    = data['atlas_landmarks']
             self.gpu                = data['gpu']
             self.epochs             = data['epochs']
             self.steps_per_epoch    = data['steps_per_epoch']
@@ -120,7 +119,6 @@ print("seg_suffix       type: {} and value: {}".format(type(args.seg_suffix), ar
 print("seg_prefix       type: {} and value: {}".format(type(args.seg_prefix), args.seg_prefix))
 print("model_dir        type: {} and value: {}".format(type(args.model_dir), args.model_dir))
 print("atlas_file       type: {} and value: {}".format(type(args.atlas_file), args.atlas_file))
-print("atlas_landmarks  type: {} and value: {}".format(type(args.atlas_landmarks), args.atlas_landmarks))
 print("gpu              type: {} and value: {}".format(type(args.gpu), args.gpu))
 print("epochs           type: {} and value: {}".format(type(args.epochs), args.epochs))
 print("steps_per_epoch  type: {} and value: {}".format(type(args.steps_per_epoch), args.steps_per_epoch))
@@ -152,7 +150,6 @@ generator = vxm.generators.semisupervised_landmarks(
     train_imgs,
     train_landmarks,
     atlas_file=args.atlas_file,
-    atlas_ldm=args.atlas_landmarks,
     steps_per_epoch=args.steps_per_epoch)
 
 # extract shape from sampled input
@@ -172,6 +169,7 @@ dec_nf = args.dec if args.dec else [32, 32, 32, 32, 32, 16, 16]
 # prepare model checkpoint save path
 save_filename = os.path.join(model_dir, '{epoch:04d}.h5')
 
+print("Harsha, inshape is {}".format(inshape))
 # build the model
 model = vxm.networks.VxmDenseLandmarksAuxiliaryLoss(
     n_gradients=args.n_gradients,

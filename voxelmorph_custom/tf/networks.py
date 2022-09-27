@@ -321,20 +321,23 @@ class VxmDenseSemiSupervisedLandmarks(ne.modelio.LoadableModel):
                              bidir=bidir,
                              **kwargs)
 
+        ldm_shape = (32,32,32,3)
+        box_shape = (2,5)
         # configure ldm input layer
-        ldm_src = tf.keras.Input(shape=(*inshape, feat), name=f'{name}_source_ldm')
-        ldm_fxd = tf.keras.Input(shape=(*inshape, feat), name=f'{name}_atlas_ldm')
+        ldm_src = tf.keras.Input(shape=(ldm_shape), name=f'{name}_source_ldm')
+        ldm_fxd = tf.keras.Input(shape=(ldm_shape), name=f'{name}_atlas_ldm')
+        ldm_box = tf.keras.Input(shape=(box_shape), name=f'{name}_box_ldm')
 
         """
         Start: Core logic for computing distance error between landmarks.
         """
         distance = layers.DistanceComputer()
-        err_value = distance(vxm_model.references.pos_flow, ldm_src, ldm_fxd)
+        err_value = distance(ldm_fxd, ldm_box, vxm_model.references.pos_flow, ldm_src)
         """
         End: Core logic for computing distance error between landmarks.
         """
 
-        inputs = vxm_model.inputs + [ldm_src] + [ldm_fxd]
+        inputs = vxm_model.inputs + [ldm_src] + [ldm_fxd] + [ldm_box]
         outputs = vxm_model.outputs + [err_value]
 
         # initialize the keras model

@@ -80,17 +80,26 @@ def volgen(
 
         # optionally load segmentations and concatenate
         if segs is True:
+            '''
             # assume inputs are npz files with 'seg' key
             load_params['np_var'] = 'seg'
             load_params['add_feat_axis'] = False
             s = [py.utils.load_volfile(vol_names[i], **load_params) for i in indices]
             vols.append(np.concatenate(s, axis=0))
+            '''
         elif isinstance(segs, list):
-            load_params['np_var'] = 'seg'
+            load_params['np_var'] = 'src'
             load_params['add_feat_axis'] = False
-            # assume segs is a corresponding list of files or preloaded volumes
             s = [py.utils.load_volfile(segs[i], **load_params) for i in indices]
             vols.append(np.concatenate(s, axis=0))
+
+            load_params['np_var'] = 'atl'
+            a = [py.utils.load_volfile(segs[i], **load_params) for i in indices]
+            vols.append(np.concatenate(a, axis=0))
+
+            load_params['np_var'] = 'box'
+            b = [py.utils.load_volfile(segs[i], **load_params) for i in indices]
+            vols.append(np.concatenate(b, axis=0))
 
         yield tuple(vols)
 
@@ -170,39 +179,24 @@ def scan_to_atlas(vol_names, atlas, bidir=False, batch_size=1, no_warp=False, se
         yield (invols, outvols)
 
 def semisupervised_landmarks(vol_names, ldm_names, atlas_file=None, atlas_ldm=None, steps_per_epoch=None, downsize=2):
-    """
-    Generator for semi-supervised registration training using ground truth landmark points.
-    Scan-to-atlas training can be enabled by providing the atlas_file argument.
-
-    Parameters:
-        vol_names: List of volume files to load, or list of preloaded volumes.
-        ldm_names: List of corresponding ldm files to load, or list of preloaded volumes.
-        atlas_file: Atlas npz file for scan-to-atlas training. Default is None.
-        atlas_ldm: Atlas landmark npz file for scan-to-atlas training. Default is None.
-        downsize: Downsize factor for segmentations. Default is 2.
-    """
-    # configure base generator
 
     gen = volgen(vol_names, segs=ldm_names, np_var='vol', steps_per_epoch=steps_per_epoch)
     zeros = None
 
     trg_vol = py.utils.load_volfile(atlas_file, np_var='vol',
                                     add_batch_axis=True, add_feat_axis=True)
-
-    trg_ldm = py.utils.load_volfile(atlas_ldm, np_var='seg',
-                                    add_batch_axis=True, add_feat_axis=False)
     while True:
-        src_vol, src_ldm = next(gen)
+        src_vol, src_ldm, trg_ldm, box_ldm = next(gen)
 
         if not atlas_file:
-            trg_vol, trg_ldm = next(gen)
+            trg_vol = next(gen)
 
         # cache zeros
         if zeros is None:
             shape = src_vol.shape[1:-1]
             zeros = np.zeros((1, *shape, len(shape)))
 
-        invols = [src_vol, trg_vol, src_ldm, trg_ldm]
+        invols = [src_vol, trg_vol, src_ldm, trg_ldm, box_ldm]
         outvols = [trg_vol, zeros, np.zeros((1))]
         yield (invols, outvols)
 
