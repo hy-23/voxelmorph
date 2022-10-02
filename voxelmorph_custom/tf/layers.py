@@ -18,6 +18,13 @@ License.
 """
 
 import os
+import sys
+
+if os.name == 'nt': # windows system
+    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+elif os.name == 'posix': # nic system
+    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+
 import warnings
 import numpy as np
 import neurite as ne
@@ -27,6 +34,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.layers import Layer
 
+import voxelmorph_custom as vxm
 # local utils
 from . import utils
 
@@ -62,6 +70,7 @@ class DistanceComputer(Layer):
         summe = tf.math.reduce_sum(mask_tensor)
         print("summe : {}".format(summe))
 
+    '''
     mse = K.square(res_tensor - a_tensor)
     mse = K.mean(mse)
     err = 1.0 / (2) * mse
@@ -70,6 +79,10 @@ class DistanceComputer(Layer):
     #err = err + 100
     #print("Error: {}".format(err))
     self.add_loss(err)
+    return err
+    '''
+    image_loss_func = vxm.losses.NCC().loss
+    err = image_loss_func(a_tensor, res_tensor)
     return err
 
 class SpatialTransformer(Layer):
