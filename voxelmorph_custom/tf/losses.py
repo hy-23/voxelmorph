@@ -119,13 +119,10 @@ class Weighted_MSE:
         upper_half = rows >> 1
         lower_half = rows - upper_half
 
-        max_value = 0.2
+        max_value = 0.5
         steps     = max_value / lower_half
         curr_step = 0
         line0     = np.ones((batch, columns, slices, feat))
-
-        print("upper_half {}".format(upper_half))
-        print("lower_half {}".format(lower_half))
 
         for lines in range(lower_half+1):
           curr_step                              = lines * steps
@@ -133,8 +130,6 @@ class Weighted_MSE:
 
 
     def mse(self, y_true, y_pred):
-        print("type of y_pred {}".format(type(y_pred)))
-        print("type of self.weight {}".format(type(self.weight)))
         mse = K.square((y_true - y_pred)*self.weight)
         return mse
 
