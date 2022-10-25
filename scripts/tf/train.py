@@ -38,9 +38,9 @@ import os
 import sys
 
 if os.name == 'nt': # windows system
-    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+    sys.path.append('Y:\\repo_condor\Masterarbeit\\voxelmorph')
 elif os.name == 'posix': # nic system
-    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+    sys.path.append('/home/students/yogeshappa/repo_condor/Masterarbeit/voxelmorph')
 
 import random
 import argparse
@@ -348,11 +348,6 @@ else:
     save_callback = tf.keras.callbacks.ModelCheckpoint(save_filename, save_freq='epoch')
 
 model.compile(optimizer=tf.keras.optimizers.Adam(lr=args.lr), loss=losses, loss_weights=weights)
-
-# model.summary(line_length = 175)
-# plot graph
-from tensorflow.keras.utils import plot_model
-plot_model(model, to_file='multiple_outputs.png', show_shapes=True)
 
 # save starting weights
 model.save(save_filename.format(epoch=args.initial_epoch))

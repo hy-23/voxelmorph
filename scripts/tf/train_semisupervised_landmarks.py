@@ -25,9 +25,9 @@ import os
 import sys
 
 if os.name == 'nt': # windows system
-    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+    sys.path.append('Y:\\repo_condor\Masterarbeit\\voxelmorph')
 elif os.name == 'posix': # nic system
-    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+    sys.path.append('/home/students/yogeshappa/repo_condor/Masterarbeit/voxelmorph')
 
 import random
 import argparse
@@ -206,6 +206,7 @@ else:
 
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.lr), loss=losses, loss_weights=weights)
 
+model.summary(line_length = 150)
 # save starting weights
 model.save(save_filename.format(epoch=args.initial_epoch))
 

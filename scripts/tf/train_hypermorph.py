@@ -28,7 +28,7 @@ import random
 import argparse
 import numpy as np
 import tensorflow as tf
-import voxelmorph as vxm
+import voxelmorph_custom as vxm
 from tensorflow.keras import backend as K
 
 
@@ -202,6 +202,12 @@ if args.test_reg:
     # sweep across 20 values of lambda
     for i, hyp in enumerate(np.linspace(0, 1, 20)):
         hyp = np.array([[hyp]], dtype='float32')  # reformat hyperparam
+
+        # Harsha: you'll have to ensure that the data is in the same order during training and prediction time.
+        # https://stackoverflow.com/a/54454855/8314782
+        # in VxmDense class, super().__init__(name=name, inputs=inputs, outputs=outputs)
+        # here, during training inputs=[moving, fixed, hyp] is given. therefore, during prediction also you 
+        # need to give in the same order.
         img = model.predict([moving, fixed, hyp])[0].squeeze()
         moved.append(img)
 
