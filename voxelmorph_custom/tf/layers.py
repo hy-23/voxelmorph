@@ -65,10 +65,13 @@ class DistanceComputer(Layer):
     mse = K.square(res_tensor - a_tensor)
     mse = K.mean(mse)
     err = 1.0 / (2) * mse
-    regularizer = 0.1
+    regularizer = 0.01 # lesser value, less importance given to this error.
     err = regularizer * err
     #err = err + 100
     #print("Error: {}".format(err))
+
+    # Loss values added via add_loss can be retrieved in the .losses list property of any Layer or Model.
+    # https://keras.io/api/losses/#the-addloss-api
     self.add_loss(err)
     return err
 

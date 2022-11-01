@@ -25,9 +25,9 @@ import os
 import sys
 
 if os.name == 'nt': # windows system
-    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+    sys.path.append('Y:\\repo_landmark\Masterarbeit\\voxelmorph')
 elif os.name == 'posix': # nic system
-    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+    sys.path.append('/home/students/yogeshappa/repo_landmark/Masterarbeit/voxelmorph')
 
 import random
 import argparse
@@ -90,7 +90,7 @@ else:
             self.seg_suffix         = data['seg_suffix']
             self.seg_prefix         = data['seg_prefix']
             self.model_dir          = data['model_dir']
-            self.atlas_file         = data['atlas_file']
+            self.atlas              = data['atlas']
             self.gpu                = data['gpu']
             self.epochs             = data['epochs']
             self.steps_per_epoch    = data['steps_per_epoch']
@@ -118,7 +118,6 @@ print("img_list         type: {} and value: {}".format(type(args.img_list), args
 print("seg_suffix       type: {} and value: {}".format(type(args.seg_suffix), args.seg_suffix))
 print("seg_prefix       type: {} and value: {}".format(type(args.seg_prefix), args.seg_prefix))
 print("model_dir        type: {} and value: {}".format(type(args.model_dir), args.model_dir))
-print("atlas_file       type: {} and value: {}".format(type(args.atlas_file), args.atlas_file))
 print("gpu              type: {} and value: {}".format(type(args.gpu), args.gpu))
 print("epochs           type: {} and value: {}".format(type(args.epochs), args.epochs))
 print("steps_per_epoch  type: {} and value: {}".format(type(args.steps_per_epoch), args.steps_per_epoch))
@@ -149,7 +148,7 @@ assert len(train_imgs) > 0, 'Could not find any training data.'
 generator = vxm.generators.semisupervised_landmarks(
     train_imgs,
     train_landmarks,
-    atlas_file=args.atlas_file,
+    atlas_file=args.atlas,
     steps_per_epoch=args.steps_per_epoch)
 
 # extract shape from sampled input
@@ -202,7 +201,7 @@ if nb_devices > 1:
     save_callback = vxm.networks.ModelCheckpointParallel(save_filename)
     model = tf.keras.utils.multi_gpu_model(model, gpus=nb_devices)
 else:
-    save_callback = tf.keras.callbacks.ModelCheckpoint(save_filename, period=20)
+    save_callback = tf.keras.callbacks.ModelCheckpoint(save_filename, period=10)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.lr), loss=losses, loss_weights=weights)
 

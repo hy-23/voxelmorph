@@ -137,7 +137,7 @@ class VxmDense(ne.modelio.LoadableModel):
 
         # build core unet model and grab inputs
 
-        # This calls 'call(...)' of UNet. If not implemented, then calls of its super's.
+        # This calls 'init(...)' of UNet. If not implemented, then calls of its super's.
         # https://www.geeksforgeeks.org/__call__-in-python/
         unet_model = Unet(
             input_model=input_model,
@@ -304,7 +304,7 @@ class VxmDenseSemiSupervisedLandmarks(ne.modelio.LoadableModel):
                  feat=3,
                  nb_unet_features=None,
                  bidir=False,
-                 name='vxm_dense',
+                 name='vxm_dense_landmark',
                  **kwargs):
         """
         Parameters:
@@ -387,6 +387,9 @@ class VxmDenseLandmarksAuxiliaryLoss(VxmDenseSemiSupervisedLandmarks):
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
             loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+
+            # Loss values added via add_loss can be retrieved in the .losses list property of any Layer or Model.
+            # https://keras.io/api/losses/#the-addloss-api
             loss += sum(self.losses)
 
         # Calculate batch gradients
