@@ -29,47 +29,19 @@ from tensorflow.keras.layers import Layer
 
 # local utils
 from . import utils
+from . import losses
 
-class DistanceComputer(Layer):
+class FlowError(Layer):
   def __init__(self, *args, **kwargs):
-    super(DistanceComputer, self).__init__(*args, **kwargs)
+    super(FlowError, self).__init__(*args, **kwargs)
 
-  def call(self, a_tensor, b_tensor, d_tensor, s_tensor):
+  def call(self, ysource, flow):
+
+    reg_loss_1 = losses.Grad('l2', loss_mult=2).loss
+    err = reg_loss_1(ysource, flow)
+    err = err + 100
+    self.add_loss(err) # [ysource, deformation_field] is passed, while ysource is ignored.
     
-    # works only for batch size of 1
-    bmin = tf.gather(b_tensor[0], indices=[0])
-    bmax = tf.gather(b_tensor[0], indices=[1])
-
-    bmin = tf.reshape(bmin, [5])
-    bmax = tf.reshape(bmax, [5])
-
-    bmin = tf.cast(bmin, tf.int32)
-    bmax = tf.cast(bmax, tf.int32)
-
-    size = tf.add(tf.subtract(bmax, bmin), 1)
-
-    df_tensor   = tf.slice(d_tensor, begin=bmin, size=size)
-    mask_tensor = tf.cast(tf.math.logical_not((s_tensor == 0)), tf.float32)
-    res_tensor  = tf.multiply(tf.subtract(s_tensor, df_tensor), mask_tensor)
-
-    if 0:
-        print("size: {}".format(size.shape))
-        print("size: {}".format(size))
-        print("d_tensor: {}".format(d_tensor.shape))
-        print("d_tensor: {}".format(d_tensor))
-        print("begin: {}".format(bmin.shape))
-        print("begin: {}".format(bmin))
-        summe = tf.math.reduce_sum(mask_tensor)
-        print("summe : {}".format(summe))
-
-    mse = K.square(res_tensor - a_tensor)
-    mse = K.mean(mse)
-    err = 1.0 / (2) * mse
-    regularizer = 0.1
-    err = regularizer * err
-    #err = err + 100
-    #print("Error: {}".format(err))
-    self.add_loss(err)
     return err
 
 class SpatialTransformer(Layer):

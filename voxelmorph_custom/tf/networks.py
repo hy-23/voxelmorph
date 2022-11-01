@@ -34,6 +34,7 @@ import neurite as ne
 from .. import default_unet_features
 from . import layers
 from . import utils
+from . import losses
 
 # make directly available from vxm
 ModelCheckpointParallel = ne.callbacks.ModelCheckpointParallel
@@ -98,6 +99,8 @@ class VxmDense(ne.modelio.LoadableModel):
                 rescaled vector-integrated field, and 'warp' to return the final, full-res warp.
             name: Model name - also used as layer name prefix. Default is 'vxm_dense'.
         """
+
+        print("Harsha, inside init of VxmDense")
 
         # ensure correct dimensionality
         ndims = len(inshape)
@@ -251,6 +254,8 @@ class VxmDense(ne.modelio.LoadableModel):
         elif reg_field == 'warp':
             # regularize the final, full-resolution deformation field
             outputs.append(pos_flow)
+        elif reg_field == 'cascade':
+            outputs.append(target)
         else:
             raise ValueError(f'Unknown option "{reg_field}" for reg_field.')
 
@@ -294,60 +299,78 @@ class VxmDense(ne.modelio.LoadableModel):
         y_img = layers.SpatialTransformer(interp_method=interp_method)(st_input)
         return tf.keras.Model(warp_model.inputs + [img_input], y_img).predict([src, trg, img])
 
-class VxmDenseSemiSupervisedLandmarks(ne.modelio.LoadableModel):
+class DummyModel(tf.keras.Model):
+    def __init__(self, inputs, outputs):
+        super(DummyModel, self).__init__(inputs=inputs, outputs=outputs)
+
+
+class VxmCascade(ne.modelio.LoadableModel):
     """
-    VoxelMorph network for (semi-supervised) nonlinear registration between two images using Landmarks.
+    Cascade of Voxelmorph network without auxiliary information.
     """
     @ne.modelio.store_config_args
     def __init__(self,
                  inshape,
-                 feat=3,
+                 down_size=2,
                  nb_unet_features=None,
                  bidir=False,
-                 name='vxm_dense',
+                 name='vxm_cascade',
                  **kwargs):
-        """
-        Parameters:
-            inshape: Input shape. e.g. (192, 192, 192)
-            nb_unet_features: Unet convolutional features.
-                See VxmDense documentation for more information.
-            bidir: Enable bidirectional cost function on images. Default is False.
-            kwargs: Forwarded to the internal VxmDense model.
-        """
+        
+        # not implemented in VxmDense(), thus commenting.
+        # super().__init__()
+        print("Harsha, inside init of VxmCascade")
+        print("Harsha, instantiating model_1")
+        model_1 = VxmDense(inshape,
+                        nb_unet_features=nb_unet_features,
+                        bidir=bidir,
+                        name='vxm_dense_model1',
+                        reg_field='cascade',
+                        **kwargs)
+        
+        # model_1.inputs = [source, target] -> [moving, fixed]
+        # model_1.outputs = [ysource, target] -> [moved, fixed]
 
-        # configure base voxelmorph network
-        vxm_model = VxmDense(inshape,
-                             nb_unet_features=nb_unet_features,
-                             bidir=bidir,
-                             **kwargs)
+        target = model_1.references.target
+        ysource = model_1.references.y_source
 
-        ldm_shape = (32,32,32,3)
-        box_shape = (2,5)
-        # configure ldm input layer
-        ldm_src = tf.keras.Input(shape=(ldm_shape), name=f'{name}_source_ldm')
-        ldm_fxd = tf.keras.Input(shape=(ldm_shape), name=f'{name}_atlas_ldm')
-        ldm_box = tf.keras.Input(shape=(box_shape), name=f'{name}_box_ldm')
+        flow = model_1.references.preint_flow
 
         """
         Start: Core logic for computing distance error between landmarks.
         """
-        distance = layers.DistanceComputer()
-        err_value = distance(ldm_fxd, ldm_box, vxm_model.references.pos_flow, ldm_src)
+        distance = layers.FlowError()
+        err_value = distance(ysource, flow)
         """
         End: Core logic for computing distance error between landmarks.
         """
 
-        inputs = vxm_model.inputs + [ldm_src] + [ldm_fxd] + [ldm_box]
-        outputs = vxm_model.outputs + [err_value]
+        connect_model = DummyModel(inputs=model_1.inputs, outputs=model_1.outputs)
+
+        print("Harsha, instantiating model_2")
+        model_2 = VxmDense(inshape,
+                        input_model=connect_model,
+                        nb_unet_features=nb_unet_features,
+                        bidir=bidir,
+                        name='vxm_dense_model2',
+                        **kwargs)
+
+        inputs = model_1.inputs
+        outputs = model_2.outputs
+        #outputs = model_2.outputs
 
         # initialize the keras model
         super().__init__(inputs=inputs, outputs=outputs)
-
+        
         # cache pointers to important layers and tensors for future reference
         self.references = ne.modelio.LoadableModel.ReferenceContainer()
-        self.references.vxm_model = vxm_model
-        self.references.pos_flow = vxm_model.references.pos_flow
-        self.references.neg_flow = vxm_model.references.neg_flow
+        self.references.model_1 = model_1
+        self.references.pos_flow_1 = model_1.references.pos_flow
+        self.references.neg_flow_1 = model_1.references.neg_flow
+        
+        self.references.pos_flow_2 = model_2.references.pos_flow
+        self.references.model_2 = model_2
+        self.references.neg_flow_2 = model_2.references.neg_flow
 
     def get_registration_model(self):
         """
@@ -371,8 +394,25 @@ class VxmDenseSemiSupervisedLandmarks(ne.modelio.LoadableModel):
         y_img = layers.SpatialTransformer(interp_method=interp_method)(st_input)
         return tf.keras.Model(warp_model.inputs + [img_input], y_img).predict([src, trg, img])
 
-class VxmDenseLandmarksAuxiliaryLoss(VxmDenseSemiSupervisedLandmarks):
+'''
+# build the model
+model = VxmCascade_GA(
+    n_gradients=args.n_gradients,
+    inshape=inshape,
+    down_size=args.int_downsize,
+    max_pool=args.max_pool,
+    nb_unet_features=[enc_nf, dec_nf],
+    bidir=args.bidir,
+    use_probs=args.use_probs,
+    int_steps=args.int_steps,
+    int_resolution=args.int_downsize,
+    src_feats=nfeats,
+    trg_feats=nfeats
+)
+'''
+class VxmCascade_GA(VxmCascade):
     def __init__(self, n_gradients, *args, **kwargs):
+        print("Harsha, inside init of VxmCascade_GA")
         super().__init__(*args, **kwargs)
         self.n_gradients = tf.constant(n_gradients, dtype=tf.int32)
         self.n_acum_step = tf.Variable(0, dtype=tf.int32, trainable=False)
@@ -387,6 +427,9 @@ class VxmDenseLandmarksAuxiliaryLoss(VxmDenseSemiSupervisedLandmarks):
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
             loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+
+            # Loss values added via add_loss can be retrieved in the .losses list property of any Layer or Model.
+            # https://keras.io/api/losses/#the-addloss-api
             loss += sum(self.losses)
 
         # Calculate batch gradients
