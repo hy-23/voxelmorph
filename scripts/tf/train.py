@@ -38,9 +38,9 @@ import os
 import sys
 
 if os.name == 'nt': # windows system
-    sys.path.append('Y:\\repo\Masterarbeit\\voxelmorph')
+    sys.path.append('Y:\\repo_vanilla\Masterarbeit\\voxelmorph')
 elif os.name == 'posix': # nic system
-    sys.path.append('/home/students/yogeshappa/repo/Masterarbeit/voxelmorph')
+    sys.path.append('/home/students/yogeshappa/repo_vanilla/Masterarbeit/voxelmorph')
 
 import random
 import argparse
@@ -232,9 +232,10 @@ train_files = vxm.py.utils.read_file_list(args.img_list, prefix=args.img_prefix,
 assert len(train_files) > 0, 'Could not find any training data.'
 
 # load and prepare validation data
-val_files = vxm.py.utils.read_file_list(args.val_list, prefix=args.img_prefix,
-                                          suffix=args.img_suffix)
-assert len(val_files) > 0, 'Could not find any validation data.'
+if args.use_validation:
+    val_files = vxm.py.utils.read_file_list(args.val_list, prefix=args.img_prefix,
+                                            suffix=args.img_suffix)
+    assert len(val_files) > 0, 'Could not find any validation data.'
 
 # no need to append an extra feature axis if data is multichannel
 add_feat_axis = not args.multichannel # [hy23] because ours is grayscale, add_feat_axis := true.
@@ -248,11 +249,12 @@ if args.atlas:
                                              bidir=args.bidir,
                                              add_feat_axis=add_feat_axis,
                                              steps_per_epoch=args.steps_per_epoch)
-    val_generator = vxm.generators.scan_to_atlas(val_files, atlas,
-                                                 batch_size=args.batch_size,
-                                                 bidir=args.bidir,
-                                                 add_feat_axis=add_feat_axis,
-                                                 steps_per_epoch=args.steps_per_epoch)
+    if args.use_validation:
+        val_generator = vxm.generators.scan_to_atlas(val_files, atlas,
+                                                     batch_size=args.batch_size,
+                                                     bidir=args.bidir,
+                                                     add_feat_axis=add_feat_axis,
+                                                     steps_per_epoch=args.steps_per_epoch)
 else:
     # scan-to-scan generator
     generator = vxm.generators.scan_to_scan(
@@ -345,14 +347,9 @@ if nb_devices > 1:
     save_callback = vxm.networks.ModelCheckpointParallel(save_filename)
     model = tf.keras.utils.multi_gpu_model(model, gpus=nb_devices)
 else:
-    save_callback = tf.keras.callbacks.ModelCheckpoint(save_filename, save_freq='epoch')
+    save_callback = tf.keras.callbacks.ModelCheckpoint(save_filename, period=10)
 
 model.compile(optimizer=tf.keras.optimizers.Adam(lr=args.lr), loss=losses, loss_weights=weights)
-
-# model.summary(line_length = 175)
-# plot graph
-from tensorflow.keras.utils import plot_model
-plot_model(model, to_file='multiple_outputs.png', show_shapes=True)
 
 # save starting weights
 model.save(save_filename.format(epoch=args.initial_epoch))
